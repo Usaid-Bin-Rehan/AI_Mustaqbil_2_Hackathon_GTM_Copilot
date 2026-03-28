@@ -15,7 +15,7 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # Rate limit guard: Groq free tier = 30 req/min
 # Semaphore limits concurrent calls so we don't hit 429s
-_groq_semaphore = asyncio.Semaphore(5)
+_groq_semaphore = asyncio.Semaphore(8)
 
 
 async def call_groq(prompt: str) -> str:

@@ -172,28 +172,30 @@ async def run_full_pipeline(data: ICPInput):
     companies = leads_result.get("leads", [])
     steps["leads"] = leads_result
 
+    import asyncio
+
     # Step 4: Research (with RAG)
     research_list = await research_agent.run(companies, formatted_icp)
     steps["research"] = research_list
 
-    # Step 5: Signal detection
-    signals_list = await signal_detection.run(companies, research_list, formatted_icp)
+    # Steps 5 & 6: Signal detection + Personalization in parallel (both depend only on research)
+    signals_list, personalization_list = await asyncio.gather(
+        signal_detection.run(companies, research_list, formatted_icp),
+        personalization.run(companies, research_list, [], formatted_icp),
+    )
     steps["signals"] = signals_list
-
-    # Step 6: Personalization
-    personalization_list = await personalization.run(companies, research_list, signals_list, formatted_icp)
     steps["personalization"] = personalization_list
 
-    # Step 7: Outreach generation
+    # Step 7: Outreach generation (depends on personalization)
     outreach_list = await outreach_agent.run(companies, personalization_list, formatted_icp)
     steps["outreach"] = outreach_list
 
-    # Step 8: QA
-    qa_list = await qa_agent.run(companies, outreach_list)
+    # Steps 8 & 9: QA + Follow-up in parallel (both depend only on outreach)
+    qa_list, followup_list = await asyncio.gather(
+        qa_agent.run(companies, outreach_list),
+        followup_agent.run(companies, outreach_list, personalization_list, formatted_icp),
+    )
     steps["qa"] = qa_list
-
-    # Step 9: Follow-up sequences
-    followup_list = await followup_agent.run(companies, outreach_list, personalization_list, formatted_icp)
     steps["followup"] = followup_list
 
     # Build final merged result per company
